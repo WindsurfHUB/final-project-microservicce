@@ -1,177 +1,149 @@
 # ระบบลงทะเบียนเรียนรายวิชา
 
-โครงงานกลุ่มตัวอย่างระบบไมโครเซอร์วิสสำหรับให้นักศึกษาเข้าสู่ระบบ ดูรายวิชา ลงทะเบียนเรียน และรับข้อความยืนยันการลงทะเบียน
+เว็บเดโมสำหรับสมัครสมาชิก เข้าสู่ระบบ ดูรายวิชา ลงทะเบียนเรียน และรับข้อความยืนยัน โดยแยกระบบเป็น 5 Microservices แต่ละบริการมี source code, tests และ Docker image ของตัวเอง ส่วน repository นี้รวมบริการ เอกสาร Docker Compose และ GitHub Actions เพื่อทดสอบและเผยแพร่ระบบ
 
-## ภาพรวมการทำงาน
+## ภาพรวมสถาปัตยกรรม
 
 ```text
-Browser → API Gateway / Web → User/Auth Service
-                          ├→ Course Service
-                          └→ Enrollment Service → Notification Service
+Browser
+  └── API Gateway / Web
+      ├── User / Auth Service
+      ├── Course Service
+      └── Enrollment Service
+            └── Notification Service
 ```
 
-ระบบมี 5 ไมโครเซอร์วิสตามบทบาทของสมาชิก แต่ละบริการพัฒนาและทดสอบแยกกัน มี `Dockerfile` และ Docker image ของตัวเอง ส่วน repo นี้เป็นที่รวม source code, Docker Compose, เอกสาร และ GitHub Actions เพื่อให้ทำงานร่วมกันและเปิดระบบทั้งชุดได้ง่าย
+ผู้ใช้เข้าเว็บผ่าน Gateway ที่ `http://localhost:8080` ส่วนบริการภายในติดต่อกันด้วยชื่อ service บนเครือข่าย Docker Compose
 
-> Docker Hub ใช้เก็บและแจกจ่าย Docker image ส่วน Docker Compose ใช้สร้างเครือข่ายและเปิด containers ให้บริการเรียกหากันผ่านชื่อ service
+## บริการและหน้าที่
 
-## ผู้รับผิดชอบไฟล์ส่วนกลาง
-
-- **Windsurf (PM):** API Gateway/Web, `docker-compose.yml`, `deploy/docker-compose.release.yml`, API contract และประสาน integration
-- **Sea (Developer):** CI workflow ของบริการทั้ง 5 ใน `.github/workflows/ci-*.yml`
-- **Safe (Developer):** `release-images.yml` สำหรับเผยแพร่ Docker Images ไป Docker Hub; Sea ช่วย review workflow
-- **เจ้าของแต่ละบริการ:** source code, tests, `Dockerfile` และ `.dockerignore` ของบริการตน พร้อมส่งคำสั่ง build/test, พอร์ต และ health endpoint ให้ผู้ดูแล workflow
-
-## สมาชิกและบริการ
-
-| สมาชิก | ตำแหน่ง | โฟลเดอร์บริการที่เสนอ |
+| บริการ | บทบาทในกลุ่ม | หน้าที่หลัก |
 |---|---|---|
-| Windsurf | PM | `services/gateway-web/` |
-| Gun | Tester | `services/user-auth/` |
-| Sea | Developer | `services/course/` |
-| Yuri | Tester | `services/enrollment/` |
-| Safe | Developer | `services/notification/` |
+| API Gateway / Web | PM | แสดงหน้าเข้าสู่ระบบและหน้ารายวิชา รวมถึงส่งต่อคำขอไปยังบริการอื่น |
+| User / Auth Service | Tester | สมัครบัญชีและเข้าสู่ระบบในฐานะนักศึกษา |
+| Course Service | Developer | แสดงรายการและรายละเอียดรายวิชา พร้อม Endpoint สำหรับเพิ่มรายวิชา ปัจจุบันยังไม่มี Endpoint แก้ไขหรือลบ |
+| Enrollment Service | Tester | ลงทะเบียนเรียนและแสดงรายการลงทะเบียนของนักศึกษา |
+| Notification Service | Developer | สร้างข้อความยืนยันการลงทะเบียนเพื่อแสดงบนเว็บ โดยไม่เชื่อมต่อผู้ให้บริการอีเมลหรือ SMS |
 
-## โครงสร้าง repo
+## เทคโนโลยีและเครื่องมือ
 
-```text
-final-project-microservicce/
-├── README.md
-├── .gitignore
-├── .env.example
-├── docker-compose.yml
-├── services/
-│   ├── gateway-web/       (Windsurf: windsurf_work.md, src/)
-│   ├── user-auth/         (Gun: gun_work.md, src/)
-│   ├── course/            (Sea: sea_work.md, src/)
-│   ├── enrollment/        (Yuri: yuri_work.md, src/)
-│   └── notification/      (Safe: safe_work.md, src/)
-├── .github/workflows/
-│   ├── ci-gateway-web.yml
-│   ├── ci-user-auth.yml
-│   ├── ci-course.yml
-│   ├── ci-enrollment.yml
-│   ├── ci-notification.yml
-│   └── release-images.yml
-├── docs/
-│   ├── README.md
-│   ├── api-contract.md
-│   ├── test-specifications.md
-│   └── deployment.md
-├── deploy/docker-compose.release.yml
-└── work/ (สรุปและ work file ของกลุ่ม)
-```
+- Node.js, TypeScript และ Express
+- Docker และ Docker Compose
+- GitHub สำหรับเก็บ source code และทำงานร่วมกัน
+- GitHub Actions สำหรับ Build, Test และเผยแพร่ Docker image
+- Docker Hub สำหรับเก็บ image แยกตามบริการ
 
-ในแต่ละโฟลเดอร์บริการมี work file ของเจ้าของและโฟลเดอร์ `src/` เป็นจุดเริ่มต้น เจ้าของสร้าง `package.json`, `tests/`, `Dockerfile` และ `.dockerignore` เพิ่มตาม work file และทำ `GET /health`; ไฟล์ work file ช่วยให้ GitHub เก็บโฟลเดอร์ไว้ได้ ไม่ต้องใช้ `.gitkeep`
+## เริ่มระบบในเครื่อง
 
-## เริ่มต้นทำงานใน repo
+สิ่งที่ต้องติดตั้งก่อน: Git, Node.js 24 และ Docker Desktop ที่เปิดใช้งานอยู่
 
-Windsurf เตรียม repo นี้ไว้แล้ว จึงไม่ต้องรัน `git init` หรือเพิ่ม `origin` ซ้ำ สมาชิกคนอื่นให้ขอ URL จาก Windsurf แล้วทำบนเครื่องของตนเอง:
+อัปเดตโค้ดจาก `main` แล้วเปิดระบบจากโฟลเดอร์หลักของ repository:
 
-```bash
-git clone <URL-ของ-repo-กลุ่ม>
-cd final-project-microservicce
-git switch -c feature/<ชื่อบริการ>-<งาน>
-```
-
-ก่อนเริ่มและก่อนส่งงาน ให้ตรวจ `git status --short --branch` สมาชิกทำงานในโฟลเดอร์บริการที่รับผิดชอบ แล้วเปิด Pull Request เข้าสาขาหลักตามที่กลุ่มตกลง อย่าแก้ไฟล์ของบริการอื่นหรือ commit ไฟล์ `.env` และ token
-
-### เตรียมเครื่องของสมาชิกทุกคน
-
-- ติดตั้ง Git, Node.js รุ่น LTS ที่กลุ่มเลือก และ Docker Desktop; เปิด Docker Desktop ไว้ก่อนใช้ Compose
-- ใช้ Node version และคำสั่งที่กำหนดใน `README`/`package.json` ของบริการเมื่อเริ่มสร้างโค้ด
-- เข้าถึง GitHub repo ของกลุ่ม และตรวจว่า clone กับ push branch ของตนเองได้
-- ตั้งค่าบัญชี Docker Hub และเข้าสู่ระบบ Docker Desktop เฉพาะผู้ที่ต้อง build/push image จากเครื่องตนเอง; การเผยแพร่อัตโนมัติใช้ GitHub Actions ของ repo กลุ่ม
-
-## เปิดระบบในเครื่องด้วย Docker Compose
-
-รันเมื่อสร้าง `docker-compose.yml` และ Dockerfile ขั้นต้นของทุกบริการแล้ว:
-
-```bash
+```powershell
+git switch main
+git pull origin main
 docker compose up --build -d
 docker compose ps
-docker compose logs -f <service-name>
 ```
 
-เปิด URL ที่กลุ่มกำหนดใน `docker-compose.yml` (แนะนำ `http://localhost:8080`) และตรวจ `GET /health` ของแต่ละบริการ หากต้องการหยุดระบบ:
+รอให้บริการขึ้นสถานะ `Healthy` แล้วเปิดเว็บ:
 
-```bash
+```powershell
+Start-Process "http://localhost:8080"
+```
+
+ตรวจสุขภาพ Gateway ได้ด้วย:
+
+```powershell
+Invoke-RestMethod http://localhost:8080/health
+```
+
+ปิดระบบเมื่อใช้งานเสร็จ:
+
+```powershell
 docker compose down
 ```
 
-## Docker Hub และการเผยแพร่ image
+## ขั้นตอนสาธิต
 
-ให้กลุ่มใช้ Docker Hub namespace เดียวกัน และแยก repository/image ต่อบริการ เช่น:
+1. สมัครบัญชี หรือเข้าสู่ระบบด้วยบัญชีที่มีอยู่
+2. กด **โหลดรายวิชา** เพื่อดูรายการวิชา
+3. กรอกรหัสนักศึกษาและรหัสวิชา แล้วกด **ลงทะเบียนเรียน**
+4. ตรวจข้อความยืนยันจาก Notification ในป๊อปอัปและส่วน **ผลการทำงาน**
+
+ข้อมูลของบริการเป็นข้อมูลเดโมที่เก็บในหน่วยความจำ เมื่อ container เริ่มใหม่ ข้อมูลที่สมัครหรือลงทะเบียนไว้อาจหายไป
+
+## การทดสอบ
+
+แต่ละบริการเก็บ tests ไว้ใน `services/<service>/tests/` โดยมี Unit Test สำหรับทดสอบส่วนย่อย และ Integration Test สำหรับตรวจ API หรือการเชื่อมต่อกับบริการอื่น ให้เข้าโฟลเดอร์บริการที่ต้องการทดสอบแล้วรัน:
+
+```powershell
+npm ci
+npm test
+```
+
+ตัวอย่างทดสอบ Gateway/Web:
+
+```powershell
+Set-Location services/gateway-web
+npm ci
+npm test
+```
+
+Test Specification ของกลุ่มอยู่ที่ [docs/test-specifications.md](docs/test-specifications.md) ครอบคลุมเกณฑ์ทดสอบทั้ง 5 บริการและ flow รวม ส่วนเอกสาร API อยู่ที่ [docs/api-contract.md](docs/api-contract.md)
+
+## GitHub Actions และ Docker Hub
+
+แต่ละบริการมี Workflow CI ของตัวเองใน `.github/workflows/ci-*.yml` เมื่อเปิด Pull Request หรือ push การเปลี่ยนแปลงเข้า `main` Workflow จะติดตั้ง dependencies, Build, Test และตรวจว่า Docker image สร้างได้
+
+หลัง merge การเปลี่ยนแปลงของบริการเข้า `main` Workflow ของบริการนั้นจะเผยแพร่ image ไป Docker Hub โดยใช้ tag `latest` และ commit SHA เมื่อ push tag รุ่นที่ขึ้นต้นด้วย `v` เช่น `v1.0.0` Workflow `release-images.yml` จะ Build, Test และเผยแพร่ image ของทั้ง 5 บริการด้วย tag รุ่นและ `latest`
+
+ชื่อ Docker Hub repository ของแต่ละ image:
+
+- `registration-gateway`
+- `registration-auth`
+- `registration-course`
+- `registration-enrollment`
+- `registration-notification`
+
+ผู้ดูแล repository ต้องตั้งค่า GitHub Actions Secrets ที่ **Settings → Secrets and variables → Actions**:
+
+- `DOCKERHUB_USERNAME` คือชื่อผู้ใช้หรือ namespace บน Docker Hub
+- `DOCKERHUB_TOKEN` คือ Docker Hub access token ที่มีสิทธิ์ push image
+
+ห้ามใส่ token หรือข้อมูลลับใน source code, ไฟล์ workflow หรือ commit ลง Git ตรวจผลการทำงานจริงในแท็บ **Actions** และตรวจ tag ของ image ใน Docker Hub
+
+## เปิดระบบจาก Docker Hub
+
+สร้างไฟล์ `.env` จาก `.env.example` แล้วกำหนด namespace และ tag ของ image ที่ต้องการใช้ จากนั้นรันที่โฟลเดอร์หลัก:
+
+```powershell
+Copy-Item .env.example .env
+# แก้ DOCKERHUB_USERNAME และ IMAGE_TAG ภายในไฟล์ .env
+docker compose --env-file .env -f deploy/docker-compose.release.yml pull
+docker compose --env-file .env -f deploy/docker-compose.release.yml up -d
+docker compose --env-file .env -f deploy/docker-compose.release.yml ps
+```
+
+เปิดเว็บที่ `http://localhost:8080` และหยุดระบบด้วย:
+
+```powershell
+docker compose --env-file .env -f deploy/docker-compose.release.yml down
+```
+
+ห้าม commit ไฟล์ `.env` ดูรายละเอียดเพิ่มเติมที่ [docs/deployment.md](docs/deployment.md)
+
+## โครงสร้างสำคัญ
 
 ```text
-<dockerhub-namespace>/registration-gateway
-<dockerhub-namespace>/registration-auth
-<dockerhub-namespace>/registration-course
-<dockerhub-namespace>/registration-enrollment
-<dockerhub-namespace>/registration-notification
+.github/workflows/          CI ของแต่ละบริการและ Release workflow
+deploy/                     Docker Compose สำหรับ image ที่เผยแพร่แล้ว
+docs/                       API Contract, Test Specification และ Deploy guide
+services/gateway-web/       เว็บและ API Gateway
+services/user-auth/         สมัครบัญชีและเข้าสู่ระบบ
+services/course/            ข้อมูลรายวิชา
+services/enrollment/        ลงทะเบียนเรียน
+services/notification/      ข้อความยืนยัน
 ```
 
-### ตั้งค่าอัตโนมัติครั้งเดียวโดย Windsurf หรือ repo admin
-
-1. สร้างหรือเลือก Docker Hub namespace ของกลุ่ม และกำหนดชื่อ image ทั้ง 5 ให้สมาชิกทราบ
-2. สร้าง Docker Hub access token ที่มีสิทธิ์เขียน image สำหรับ automation อย่าใช้หรือส่งรหัสผ่านบัญชีให้สมาชิก
-3. Windsurf หรือ repo admin ไปที่ GitHub repo → **Settings → Secrets and variables → Actions** แล้วเพิ่ม Secrets:
-   - `DOCKERHUB_USERNAME` — Docker Hub namespace/username ที่ใช้เผยแพร่
-   - `DOCKERHUB_TOKEN` — access token จาก Docker Hub
-4. Sea ดูแล CI workflow ของทั้ง 5 บริการใน `.github/workflows/ci-*.yml`; Safe ดูแล `release-images.yml` สำหรับ build และ push image เมื่อ push tag เช่น `v0.1.0` โดยเจ้าของบริการส่งคำสั่ง build/test, พอร์ต และ health check ให้ทั้งคู่
-5. ตรวจแท็บ **Actions** ว่า workflow สำเร็จ แล้วตรวจ image และ tag ใน Docker Hub
-
-Secrets เป็นการตั้งค่าร่วมของ repo โดยผู้มีสิทธิ์จัดการเท่านั้น สมาชิกแต่ละคนไม่ต้องสร้าง token ของตนหรือใส่ token ในไฟล์งาน หากสมาชิกจำเป็นต้อง push image ด้วยตนเอง ให้ใช้ token ที่ได้รับมอบหมายและเก็บไว้ใน Docker credential store; ห้าม commit token
-
-สำหรับขั้นตอนตั้งแต่ build/push จนเปิดระบบจาก image ดู [คู่มือ Deploy และ Docker Hub](docs/deployment.md)
-
-### ทดลอง build และ push ด้วยตนเอง (ถ้าได้รับสิทธิ์)
-
-```bash
-docker login -u <dockerhub-username>
-docker build -t <dockerhub-namespace>/registration-course:v0.1.0 ./services/course
-docker push <dockerhub-namespace>/registration-course:v0.1.0
-docker pull <dockerhub-namespace>/registration-course:v0.1.0
-```
-
-เปลี่ยน `course` เป็นโฟลเดอร์และชื่อ image ของบริการที่รับผิดชอบ อย่าเผยแพร่ image ที่ยังไม่ได้ผ่านการทดสอบหรือใช้ tag `latest` แทน version ในหลักฐานส่งงาน
-
-### ลำดับ CI/CD ที่แนะนำ
-
-เมื่อ merge การเปลี่ยนแปลงเข้า `main` ระบบจะทดสอบและเผยแพร่ image ของบริการที่เปลี่ยนแปลงไปยัง Docker Hub โดยอัตโนมัติ ส่วนการ push tag รูปแบบ `v*` จะทดสอบและเผยแพร่ image ทั้ง 5 บริการ
-
-1. สมาชิก push branch และเปิด Pull Request
-2. GitHub Actions ของบริการที่เปลี่ยนแปลงติดตั้ง dependencies, build, รัน unit/integration tests และตรวจว่า Docker image build ได้
-3. รวม Pull Request หลัง CI ผ่าน โดย Sea ดูแล CI workflow และ Safe ช่วยตรวจ release workflow
-4. Windsurf ในฐานะ PM สร้าง GitHub Release ที่มี tag เช่น `v0.1.0`; Safe ดูแล workflow เผยแพร่ image และ Sea ช่วยตรวจ CI
-5. Release workflow build และ push image ทั้ง 5 ไป Docker Hub ด้วย version tag
-6. ดึง image ที่เผยแพร่แล้วมาทดลองเปิดด้วย Compose และตรวจ health endpoints ก่อนนำเสนอ
-
-## ขอบเขตงานที่ควรทำก่อน
-
-เริ่มจาก API แบบง่ายและข้อมูลตัวอย่าง ไม่ต้องเชื่อมอีเมลหรือ SMS และไม่ต้องทำระบบ production เต็มรูปแบบ ควรตกลง API path, JSON fields, service names, ports และ image names ก่อนแยกงานพัฒนา
-
-API เบื้องต้นที่เสนอ:
-
-- `POST /api/auth/login`
-- `GET /api/courses`
-- `POST /api/enrollments`
-- `GET /api/enrollments/:studentId`
-- `GET /api/notifications/:enrollmentId`
-- `GET /health` สำหรับทุกบริการ
-
-## ไฟล์วางแผนของกลุ่ม
-
-- [`PROJECT_SUMMARY.md`](work/PROJECT_SUMMARY.md) — สรุปแนวคิดและขอบเขตโครงงาน
-- [`member-work-file.md`](work/member-work-file.md) — แผนงานหลักและกติกาการทำงานร่วมกัน
-- [API Contract](docs/api-contract.md), [Test Specifications](docs/test-specifications.md), [Docker Hub/Deploy](docs/deployment.md) — เอกสารระบบและขั้นตอนที่กลุ่มใช้อ้างอิง
-- `services/<service>/<member>_work.md` — รายการงานและขั้นตอน setup เฉพาะของสมาชิกในโฟลเดอร์บริการที่รับผิดชอบ
-
-## ตัวอย่างที่ใช้อ้างอิง
-
-โครงสร้าง monorepo, แยกโฟลเดอร์ service, ใช้ Compose เปิดทั้งระบบ และแยก CI ตามบริการดัดแปลงจาก [repo ตัวอย่างของเพื่อน](https://github.com/Boypemt/Cloud-deploy-final-project), [README](https://github.com/Boypemt/Cloud-deploy-final-project/blob/main/README.md), [Docker Compose](https://github.com/Boypemt/Cloud-deploy-final-project/blob/main/docker-compose.yml) และ [เอกสาร Pipeline](https://github.com/Boypemt/Cloud-deploy-final-project/blob/main/docs/PIPELINE.md) โดย README นี้เป็นแผนสำหรับระบบลงทะเบียนเรียน ไม่ได้นำข้อมูลลับหรือโค้ดของระบบตัวอย่างมาใช้
-
-## เอกสารอ้างอิง
-
-- [Docker Compose: `up`](https://docs.docker.com/reference/cli/docker/compose/up/)
-- [Docker Hub access tokens](https://docs.docker.com/security/access-tokens/)
-- [GitHub Actions secrets](https://docs.github.com/en/actions/reference/security/secrets)
+ไฟล์งานรายบุคคลอยู่ในโฟลเดอร์ของแต่ละบริการ เช่น `services/gateway-web/windsurf_work.md` และ `services/notification/safe_work.md`
