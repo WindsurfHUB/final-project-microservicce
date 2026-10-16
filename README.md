@@ -64,34 +64,6 @@ Invoke-RestMethod http://localhost:8080/health
 docker compose down
 ```
 
-## ขั้นตอนสาธิต
-
-1. สมัครบัญชี หรือเข้าสู่ระบบด้วยบัญชีที่มีอยู่
-2. กด **โหลดรายวิชา** เพื่อดูรายการวิชา
-3. กรอกรหัสนักศึกษาและรหัสวิชา แล้วกด **ลงทะเบียนเรียน**
-4. ตรวจข้อความยืนยันจาก Notification ในป๊อปอัปและส่วน **ผลการทำงาน**
-
-ข้อมูลของบริการเป็นข้อมูลเดโมที่เก็บในหน่วยความจำ เมื่อ container เริ่มใหม่ ข้อมูลที่สมัครหรือลงทะเบียนไว้อาจหายไป
-
-## การทดสอบ
-
-แต่ละบริการเก็บ tests ไว้ใน `services/<service>/tests/` โดยมี Unit Test สำหรับทดสอบส่วนย่อย และ Integration Test สำหรับตรวจ API หรือการเชื่อมต่อกับบริการอื่น ให้เข้าโฟลเดอร์บริการที่ต้องการทดสอบแล้วรัน:
-
-```powershell
-npm ci
-npm test
-```
-
-ตัวอย่างทดสอบ Gateway/Web:
-
-```powershell
-Set-Location services/gateway-web
-npm ci
-npm test
-```
-
-Test Specification ของกลุ่มอยู่ที่ [docs/test-specifications.md](docs/test-specifications.md) ครอบคลุมเกณฑ์ทดสอบทั้ง 5 บริการและ flow รวม ส่วนเอกสาร API อยู่ที่ [docs/api-contract.md](docs/api-contract.md)
-
 ## GitHub Actions และ Docker Hub
 
 แต่ละบริการมี Workflow CI ของตัวเองใน `.github/workflows/ci-*.yml` เมื่อเปิด Pull Request หรือ push การเปลี่ยนแปลงเข้า `main` Workflow จะติดตั้ง dependencies, Build, Test และตรวจว่า Docker image สร้างได้
